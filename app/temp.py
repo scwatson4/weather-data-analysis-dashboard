@@ -4,6 +4,11 @@ import requests
 import pandas as pd
 from datetime import datetime, timedelta
 from shapely.geometry import Point, Polygon
+from dotenv import load_dotenv
+import os
+
+# Load environment variables
+load_dotenv()
 
 def get_station_data_for_period_temp(date_input: str, island_name: str, variable: str):
     """
@@ -18,7 +23,9 @@ def get_station_data_for_period_temp(date_input: str, island_name: str, variable
     - pd.DataFrame: Daily station-level data for the given time and island
     """
 
-    hcdp_api_token = "c8aebebea3d9684526cfdab0fc62cbd6"
+    hcdp_api_token = os.getenv("OAUTH_TOKEN")
+    if not hcdp_api_token:
+        raise ValueError("OAUTH_TOKEN is not set in the environment")
     api_base_url = "https://api.hcdp.ikewai.org"
     header = {"Authorization": f"Bearer {hcdp_api_token}"}
 

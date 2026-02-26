@@ -37,7 +37,7 @@ st.sidebar.markdown(
     </style>
 
     <div class="sidebar-title">
-        🌴 Hawaiʻi Climate Explorer
+        Hawaii Climate Data Portal AI Interface
     </div>
     """,
     unsafe_allow_html=True
@@ -216,13 +216,25 @@ def island_bar_chart(date_input=st.session_state.date_input, variable="rainfall"
     data = []
     for label, name in islands.items():
         df = temp.get_station_data_for_period_temp(date_input, name, variable)
-        df = df.rename(columns={"max-temp": "max_temp"})
+        
+        # Skip if no data returned
+        if df.empty:
+            continue
+            
+        # Rename columns based on variable type
         if variable == "rainfall":
-            df = df.rename(columns={"rainfall": "value"})
-            agg_value = df["value"].median()
-        else:
-            df = df.rename(columns={"max_temp": "value"})
-            agg_value = df["value"].max()
+            if "rainfall" in df.columns:
+                df = df.rename(columns={"rainfall": "value"})
+                agg_value = df["value"].median()
+            else:
+                continue
+        else:  # temperature
+            if "max-temp" in df.columns:
+                df = df.rename(columns={"max-temp": "value"})
+                agg_value = df["value"].max()
+            else:
+                continue
+        
         data.append({"Island": label, "value": agg_value})
 
     df_summary = pd.DataFrame(data)
@@ -277,7 +289,7 @@ with main_col:
         else:
             st.markdown('''
             # Hawaiian Islands Overview
-            > Explore climate data in the main islands of Hawaiʻi. 
+            > Explore climate data in the main islands of Hawaii. 
             ---
             ''')
 
@@ -290,7 +302,7 @@ with main_col:
 
             with center_col:
                 st.markdown(
-                    "<div style='text-align: center; font-size: 24px; color: #808180'>⬅️ &nbsp; <strong>How to visualize data?</strong> &nbsp; ➡️</div>",
+                    "<div style='text-align: center; font-size: 24px; color: #808180'> &nbsp; <strong>Visualization</strong> &nbsp; </div>",
                     unsafe_allow_html=True
                 )
             with right_col:
@@ -764,7 +776,7 @@ with chat_col:
     # Initialize chat history in session state
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = [
-            {"role": "model", "content": "Hi! Ask me anything about Hawaii's climate."}
+            {"role": "assistant", "content": "Hi! Ask me anything about Hawaii's climate."}
         ]
 
     # Function to render the conversation using chat_html
@@ -777,40 +789,40 @@ with chat_col:
         chat_html += '</div>'
         st.markdown(chat_html, unsafe_allow_html=True)
 
-    # Function to handle user input
+    # Function to handle user input — only appends the message
+    # Streamlit automatically reruns after the callback, showing the user's message
     def handle_user_input():
         user_input = st.session_state.get("user_prompt", "")
         if user_input:
-            # Add user input to chat history
             st.session_state.chat_history.append({"role": "user", "content": user_input})
-            
-            # Call the model API to get the response
-            response = get_chat_response(st.session_state.chat_history)
-            if isinstance(response, str):
-                bot_reply = response
-                extra_params = None
-            else:
-                chat_response, extra_params = response.get("response", ""), response.get("extra_params", None)
-                bot_reply = chat_response
-
-            st.session_state.chat_history.append({"role": "model", "content": bot_reply})
-
-            if extra_params is not None:
-                print(extra_params)
-                if extra_params.get("county", None) is not None:
-                    if islands.get(extra_params["county"], None) is not None:
-                        st.session_state["selected_page"] = extra_params["county"]
-                if extra_params.get("variable", None) is not None:
-                    st.session_state["display_type"] = extra_params["variable"].title()
-
-            # st.session_state["selected_page"] = "Oʻahu"
-
-            # Clear the input field by removing the key
             del st.session_state["user_prompt"]
-            
+
     # Render the chat interface
-    with st.expander("🌐 Kai-Mate", expanded=False):
+    with st.expander("Ask AI", expanded=False):
         render_conversation()
+
+        # If the last message is from the user, fetch the AI response
+        if st.session_state.chat_history and st.session_state.chat_history[-1]["role"] == "user":
+            with st.spinner("Thinking..."):
+                response = get_chat_response(st.session_state.chat_history)
+                if isinstance(response, str):
+                    bot_reply = response
+                    extra_params = None
+                else:
+                    chat_response, extra_params = response.get("response", ""), response.get("extra_params", None)
+                    bot_reply = chat_response
+
+                st.session_state.chat_history.append({"role": "assistant", "content": bot_reply})
+
+                if extra_params is not None:
+                    print(extra_params)
+                    if extra_params.get("county", None) is not None:
+                        if islands.get(extra_params["county"], None) is not None:
+                            st.session_state["selected_page"] = extra_params["county"]
+                    if extra_params.get("variable", None) is not None:
+                        st.session_state["display_type"] = extra_params["variable"].title()
+
+                st.rerun()  # re-render to show the assistant's reply
 
         # Wrap the chat input with bottom()
         st.chat_input(

@@ -7,6 +7,11 @@ from datetime import datetime, timedelta
 from sklearn.ensemble import RandomForestRegressor
 from dateutil.relativedelta import relativedelta
 import streamlit as st
+from dotenv import load_dotenv
+import os
+
+# Load environment variables
+load_dotenv()
 
 def generate_rainfall_forecast_plot(month: str, latitude: float, longitude: float):
     """
@@ -21,7 +26,9 @@ def generate_rainfall_forecast_plot(month: str, latitude: float, longitude: floa
         longitude (float): Longitude of location
     """
 
-    hcdp_api_token = "c8aebebea3d9684526cfdab0fc62cbd6"
+    hcdp_api_token = os.getenv("OAUTH_TOKEN")
+    if not hcdp_api_token:
+        raise ValueError("OAUTH_TOKEN is not set in the environment")
     api_base_url = "https://api.hcdp.ikewai.org"
     header = {"Authorization": f"Bearer {hcdp_api_token}"}
 
